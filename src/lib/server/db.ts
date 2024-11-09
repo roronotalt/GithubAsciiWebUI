@@ -3,7 +3,7 @@ import { SyncDatabase } from "@pilcrowjs/db-query";
 
 import type { SyncAdapter } from "@pilcrowjs/db-query";
 
-const sqlite = sqlite3("sqlite.db");
+const sqlite = sqlite3("static/sqlite.db");
 
 const adapter: SyncAdapter<sqlite3.RunResult> = {
 	query: (statement: string, params: unknown[]): unknown[][] => {
