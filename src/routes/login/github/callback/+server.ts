@@ -5,6 +5,7 @@ import { createSession, generateSessionToken, setSessionTokenCookie } from "$lib
 
 import type { OAuth2Tokens } from "arctic";
 import type { RequestEvent } from "./$types";
+import { ObjectId } from "mongodb";
 
 export async function GET(event: RequestEvent): Promise<Response> {
 	const storedState = event.cookies.get("github_oauth_state") ?? null;
@@ -42,10 +43,10 @@ export async function GET(event: RequestEvent): Promise<Response> {
 	const githubUserId = userParser.getNumber("id");
 	const username = userParser.getString("login");
 
-	const existingUser = getUserFromGitHubId(githubUserId, githubAccessToken);
+	const existingUser = await getUserFromGitHubId(githubUserId, githubAccessToken);
 	if (existingUser !== null) {
 		const sessionToken = generateSessionToken();
-		const session = createSession(sessionToken, existingUser.id);
+		const session = await createSession(sessionToken, new ObjectId(existingUser.id));
 		setSessionTokenCookie(event, sessionToken, session.expiresAt);
 		return new Response(null, {
 			status: 302,
@@ -79,9 +80,9 @@ export async function GET(event: RequestEvent): Promise<Response> {
 		});
 	}
 
-	const user = createUser(githubUserId, email, username, githubAccessToken);
+	const user = await createUser(githubUserId, email, username, githubAccessToken);
 	const sessionToken = generateSessionToken();
-	const session = createSession(sessionToken, user.id);
+	const session = await createSession(sessionToken, user.id);
 	setSessionTokenCookie(event, sessionToken, session.expiresAt);
 	return new Response(null, {
 		status: 302,

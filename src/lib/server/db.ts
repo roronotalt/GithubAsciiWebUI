@@ -1,28 +1,11 @@
-import sqlite3 from "better-sqlite3";
-import { SyncDatabase } from "@pilcrowjs/db-query";
+import { MongoClient } from "mongodb";
+import { MONGO_URL } from "$env/static/private";
 
-import type { SyncAdapter } from "@pilcrowjs/db-query";
+const client = new MongoClient(MONGO_URL);
 
-const sqlite = sqlite3("sqlite.db");
-
-const adapter: SyncAdapter<sqlite3.RunResult> = {
-	query: (statement: string, params: unknown[]): unknown[][] => {
-		const result = sqlite
-			.prepare(statement)
-			.raw()
-			.all(...params);
-		return result as unknown[][];
-	},
-	execute: (statement: string, params: unknown[]): sqlite3.RunResult => {
-		const result = sqlite.prepare(statement).run(...params);
-		return result;
-	}
-};
-
-class Database extends SyncDatabase<sqlite3.RunResult> {
-	public inTransaction(): boolean {
-		return sqlite.inTransaction;
-	}
+export function start_mongo() {
+	console.log("Starting MongoDB client...");
+	return client.connect();
 }
 
-export const db = new Database(adapter);
+export const db = client.db();

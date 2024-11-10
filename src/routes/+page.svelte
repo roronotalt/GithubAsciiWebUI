@@ -7,6 +7,7 @@
 	import MonthLabels from "./MonthLabels.svelte";
 
 	export let data: PageData;
+	let mutliplier = 1;
 
 	async function createRepo() {
 		const userRequest = new Request("https://api.github.com/user/repos", {
@@ -19,7 +20,7 @@
 				is_template: false
 			})
 		});
-		userRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+		userRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 		await fetch(userRequest);
 	}
 
@@ -27,7 +28,7 @@
 		const userRequest = new Request("https://api.github.com/user/repos", {
 			method: "GET"
 		});
-		userRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+		userRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 		const userResponse = await fetch(userRequest);
 		const userResult: any = await userResponse.json();
 		let constainsRepo = userResult.find((repo: any) => repo.name === "GitcommitMessage");
@@ -40,7 +41,7 @@
 			const userRequest = new Request("https://api.github.com/user", {
 				method: "GET"
 			});
-			userRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+			userRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 			const userResponse = await (await fetch(userRequest)).json();
 			name = userResponse.name;
 			return userResponse.name;
@@ -61,7 +62,7 @@
 					encoding: "utf-8"
 				})
 			});
-			blobRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+			blobRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 
 			const blobResponse = await (await fetch(blobRequest)).json();
 			const treeRequest = new Request(`https://api.github.com/repos/${data.user.username}/GitcommitMessage/git/trees`, {
@@ -77,7 +78,7 @@
 					]
 				})
 			});
-			treeRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+			treeRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 			const treeResponse = await (await fetch(treeRequest)).json();
 			tree.push(treeResponse.sha);
 		}
@@ -137,7 +138,7 @@
 				})
 			}
 		);
-		commitRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+		commitRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 		const commitResponse = await (await fetch(commitRequest)).json();
 		console.log(commitResponse);
 
@@ -152,7 +153,7 @@
 				})
 			}
 		);
-		updateRefRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+		updateRefRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 		const updateRefResponse = await (await fetch(updateRefRequest)).json();
 
 		console.log(updateRefResponse);
@@ -163,8 +164,9 @@
 			const userRequest = new Request(`https://api.github.com/repos/${data.user.username}/GitcommitMessage`, {
 				method: "DELETE"
 			});
-			userRequest.headers.set("Authorization", `Bearer ${data.user.githubAccessToken}`);
+			userRequest.headers.set("Authorization", `Bearer ${data.user.github_access_token}`);
 			await fetch(userRequest);
+			alert("Successfully deleted repo, it may take a few minutes for the changes to be reflected.");
 		}
 	}
 
@@ -191,7 +193,7 @@
 	const MATRIX_OFF = 1;
 
 	// Image URL
-	const image = `https://avatars.githubusercontent.com/u/${data.user.githubId}`;
+	const image = `https://avatars.githubusercontent.com/u/${data.user.github_id}`;
 
 	// Function to create the bitmap matrix
 	let changedBefore = false;
@@ -397,12 +399,11 @@
 			}
 		}
 
-		let multiplier = await getCommits();
-		console.log(commitDates);
+		let commitMultiplier = await getCommits();
 		// Commit to github
 		for (let i = 0; i < commitDates.length; i++) {
-			progress = `Committing ${i + 1} of ${commitDates.length}`;
-			for (let j = 0; j < multiplier * 2; j++) {
+			progress = `Committing ${i + 1} of ${commitDates.length} - KEEP THIS WINDOW OPEN`;
+			for (let j = 0; j < commitMultiplier * mutliplier; j++) {
 				await commit(commitDates[i]);
 			}
 		}
@@ -512,6 +513,10 @@
 				AutoCenter
 			</label>
 			<span class="progress-text">{progress}</span>
+			<div>
+				<span class="progress-text">Commit multiplier</span>
+				<input class="custom-input-mul" width="5ch" type="number" bind:value={mutliplier} />
+			</div>
 		</div>
 
 		<div class="button-group">
@@ -849,6 +854,22 @@
 		align-items: center;
 		gap: 1rem;
 		margin-bottom: 1.5rem;
+	}
+
+	.custom-input-mul {
+		flex: 2;
+		padding: 0.75rem 1rem;
+		border: 2px solid #e2e8f0;
+		border-radius: 0.5rem;
+		font-size: 1rem;
+		transition: all 0.2s;
+		width: 5ch;
+	}
+
+	.custom-input-mul:focus {
+		outline: none;
+		border-color: #3b82f6;
+		box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 	}
 
 	.custom-input {

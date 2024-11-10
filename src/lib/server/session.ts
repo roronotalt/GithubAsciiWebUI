@@ -4,54 +4,51 @@ import { sha256 } from "@oslojs/crypto/sha2";
 import type { User } from "./user";
 
 import type { RequestEvent } from "@sveltejs/kit";
+import { ObjectId } from "mongodb";
 
-export function validateSessionToken(token: string): SessionValidationResult {
+export async function validateSessionToken(token: string): Promise<SessionValidationResult> {
 	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
-	const row = db.queryOne(
-		`
-SELECT session.id, session.user_id, session.expires_at, user.id, user.github_id, user.email, user.username, user.github_access_token FROM session
-INNER JOIN user ON session.user_id = user.id
-WHERE session.id = ?
-`,
-		[sessionId]
-	);
+	const sessionRow = await db.collection("sessions").findOne({ id: sessionId });
+	const userRow = await db.collection("users").findOne({ _id: new ObjectId(sessionRow?.user_id) });
 
-	if (row === null) {
+	if (sessionRow === null || userRow === null) {
 		return { session: null, user: null };
 	}
 	const session: Session = {
-		id: row.string(0),
-		userId: row.number(1),
-		expiresAt: new Date(row.number(2) * 1000)
+		id: sessionRow.id,
+		user_id: sessionRow.user_id,
+		expiresAt: new Date(sessionRow.expiresAt * 1000)
 	};
 	const user: User = {
-		id: row.number(3),
-		githubId: row.number(4),
-		email: row.string(5),
-		username: row.string(6),
-		githubAccessToken: row.string(7)
+		id: userRow._id.toString(),
+		github_id: userRow.github_id,
+		email: userRow.email,
+		username: userRow.username,
+		github_access_token: userRow.github_access_token
 	};
+
 	if (Date.now() >= session.expiresAt.getTime()) {
-		db.execute("DELETE FROM session WHERE id = ?", [session.id]);
+		await db.collection("sessions").deleteOne({ id: session.id });
 		return { session: null, user: null };
 	}
 	if (Date.now() >= session.expiresAt.getTime() - 1000 * 60 * 60 * 24 * 15) {
 		session.expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24 * 30);
-		db.execute("UPDATE session SET expires_at = ? WHERE session.id = ?", [
-			Math.floor(session.expiresAt.getTime() / 1000),
-			session.id
-		]);
-		console.log(user.githubAccessToken);
+		if (user.github_access_token !== null) {
+			await db
+				.collection("sessions")
+				.updateOne({ id: session.id }, { $set: { expiresAt: Math.floor(session.expiresAt.getTime() / 1000) } });
+		}
 	}
+
 	return { session, user };
 }
 
-export function invalidateSession(sessionId: string): void {
-	db.execute("DELETE FROM session WHERE id = ?", [sessionId]);
+export async function invalidateSession(sessionId: string): Promise<void> {
+	await db.collection("sesions").deleteOne({ id: sessionId });
 }
 
-export function invalidateUserSessions(userId: number): void {
-	db.execute("DELETE FROM session WHERE user_id = ?", [userId]);
+export async function invalidateUserSessions(userId: number): Promise<void> {
+	await db.collection("sessions").deleteMany({ user_id: userId });
 }
 
 export function setSessionTokenCookie(event: RequestEvent, token: string, expiresAt: Date): void {
@@ -81,25 +78,21 @@ export function generateSessionToken(): string {
 	return token;
 }
 
-export function createSession(token: string, userId: number): Session {
+export async function createSession(token: string, userId: ObjectId): Promise<Session> {
 	const sessionId = encodeHexLowerCase(sha256(new TextEncoder().encode(token)));
 	const session: Session = {
 		id: sessionId,
-		userId,
+		user_id: userId.toString(),
 		expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)
 	};
-	db.execute("INSERT INTO session (id, user_id, expires_at) VALUES (?, ?, ?)", [
-		session.id,
-		session.userId,
-		Math.floor(session.expiresAt.getTime() / 1000)
-	]);
+	await db.collection("sessions").insertOne(session);
 	return session;
 }
 
 export interface Session {
 	id: string;
 	expiresAt: Date;
-	userId: number;
+	user_id: string;
 }
 
 type SessionValidationResult = { session: Session; user: User } | { session: null; user: null };

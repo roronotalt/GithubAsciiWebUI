@@ -1,45 +1,51 @@
+import type { ObjectId } from "mongodb";
 import { db } from "./db";
 
-export function createUser(githubId: number, email: string, username: string, githubAccessToken: string): User {
-	const row = db.queryOne(
-		"INSERT INTO user (github_id, email, username, github_access_token) VALUES (?, ?, ?, ?) RETURNING user.id",
-		[githubId, email, username, githubAccessToken]
-	);
+export async function createUser(
+	githubId: number,
+	email: string,
+	username: string,
+	githubAccessToken: string
+): Promise<User> {
+	const row = await db.collection("users").insertOne({
+		github_id: githubId,
+		email: email,
+		username: username,
+		github_access_token: githubAccessToken
+	});
 	if (row === null) {
 		throw new Error("Unexpected error");
 	}
 	const user: User = {
-		id: row.number(0),
-		githubId,
+		id: row.insertedId.toString(),
+		github_id: githubId,
 		email,
 		username,
-		githubAccessToken
+		github_access_token: githubAccessToken
 	};
 	return user;
 }
 
-export function getUserFromGitHubId(githubId: number, githubAccessToken: string): User | null {
-	db.execute("UPDATE user SET github_access_token = ? WHERE id = ?", [githubAccessToken, githubId]);
-	const row = db.queryOne("SELECT id, github_id, email, username, github_access_token FROM user WHERE github_id = ?", [
-		githubId
-	]);
+export async function getUserFromGitHubId(githubId: number, githubAccessToken: string): Promise<User | null> {
+	await db.collection("users").updateOne({ github_id: githubId }, { $set: { github_access_token: githubAccessToken } });
+	const row = await db.collection("users").findOne({ github_id: githubId });
 	if (row === null) {
 		return null;
 	}
 	const user: User = {
-		id: row.number(0),
-		githubId: row.number(1),
-		email: row.string(2),
-		username: row.string(3),
-		githubAccessToken: row.string(4)
+		id: row._id.toHexString(),
+		github_id: row.github_id,
+		email: row.email,
+		username: row.username,
+		github_access_token: row.github_access_token
 	};
 	return user;
 }
 
 export interface User {
-	id: number;
+	id: string;
 	email: string;
-	githubId: number;
+	github_id: number;
 	username: string;
-	githubAccessToken: string;
+	github_access_token: string;
 }
