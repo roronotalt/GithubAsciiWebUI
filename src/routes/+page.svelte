@@ -408,6 +408,7 @@
 			}
 		}
 		loading = false;
+		alert("Done! might take a few minutes for the changes to be reflected.");
 	}
 	// drag functionality
 	type Position = {
