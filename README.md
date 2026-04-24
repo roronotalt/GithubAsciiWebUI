@@ -1,5 +1,5 @@
 # GitHub Ascii WebUI
-Demo URL: https://gitcommitui.xyz/
+Demo URL: [https://gitcommitui.xyz/](https://github-ascii-web-ui.vercel.app/)
 
 ## Why?
 I don't like having people run scripts, faster & easier to just have a webUI. Plus it's cool, I like having uwu on my github profile, shows personality.
