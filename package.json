@@ -2,6 +2,9 @@
 	"name": "GithubMessage",
 	"version": "0.0.1",
 	"private": true,
+	"engines": {
+		"node": ">=20 <23"
+	},
 	"scripts": {
 		"dev": "vite dev",
 		"build": "vite build",
@@ -12,7 +15,7 @@
 		"format": "prettier --write ."
 	},
 	"devDependencies": {
-		"@sveltejs/adapter-auto": "^3.0.0",
+		"@sveltejs/adapter-node": "^5.2.0",
 		"@sveltejs/kit": "^2.0.0",
 		"@sveltejs/vite-plugin-svelte": "^3.0.0",
 		"@types/better-sqlite3": "^7.6.11",
