@@ -1,16 +1,22 @@
 import Database from "better-sqlite3";
 import { env } from "$env/dynamic/private";
 
-// Default to a file in the project root; can be overridden via SQLITE_PATH env var.
-const dbPath = env.SQLITE_PATH ?? "data.db";
+// Default to in-memory so this works on serverless platforms (Vercel, etc.)
+// where the filesystem is read-only and the function container is ephemeral.
+// On a real Node host with persistent disk, set SQLITE_PATH=./data.db (or any
+// writable path) to keep data across restarts.
+const dbPath = env.SQLITE_PATH ?? ":memory:";
 
 export const db = new Database(dbPath);
 
-// Better defaults for a long-running server.
-db.pragma("journal_mode = WAL");
+// Pragmas that make sense for any backend.
+if (dbPath !== ":memory:") {
+	db.pragma("journal_mode = WAL");
+}
 db.pragma("foreign_keys = ON");
 
-// Auto-create the schema on first run. Mirrors setup.sql.
+// Auto-create the schema on first connect. Mirrors setup.sql. Required for
+// :memory: backends since each new container starts with an empty DB.
 db.exec(`
     CREATE TABLE IF NOT EXISTS user (
         id INTEGER NOT NULL PRIMARY KEY,
