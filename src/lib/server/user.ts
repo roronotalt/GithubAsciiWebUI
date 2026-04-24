@@ -1,5 +1,12 @@
-import type { ObjectId } from "mongodb";
 import { db } from "./db";
+
+interface UserRow {
+	id: number;
+	github_id: number;
+	email: string;
+	username: string;
+	github_access_token: string;
+}
 
 export async function createUser(
 	githubId: number,
@@ -7,17 +14,14 @@ export async function createUser(
 	username: string,
 	githubAccessToken: string
 ): Promise<User> {
-	const row = await db.collection("users").insertOne({
-		github_id: githubId,
-		email: email,
-		username: username,
-		github_access_token: githubAccessToken
-	});
-	if (row === null) {
-		throw new Error("Unexpected error");
-	}
+	const result = db
+		.prepare(
+			"INSERT INTO user (github_id, email, username, github_access_token) VALUES (?, ?, ?, ?)"
+		)
+		.run(githubId, email, username, githubAccessToken);
+
 	const user: User = {
-		id: row.insertedId.toString(),
+		id: Number(result.lastInsertRowid),
 		github_id: githubId,
 		email,
 		username,
@@ -26,14 +30,26 @@ export async function createUser(
 	return user;
 }
 
-export async function getUserFromGitHubId(githubId: number, githubAccessToken: string): Promise<User | null> {
-	await db.collection("users").updateOne({ github_id: githubId }, { $set: { github_access_token: githubAccessToken } });
-	const row = await db.collection("users").findOne({ github_id: githubId });
-	if (row === null) {
+export async function getUserFromGitHubId(
+	githubId: number,
+	githubAccessToken: string
+): Promise<User | null> {
+	db.prepare("UPDATE user SET github_access_token = ? WHERE github_id = ?").run(
+		githubAccessToken,
+		githubId
+	);
+
+	const row = db
+		.prepare(
+			"SELECT id, github_id, email, username, github_access_token FROM user WHERE github_id = ?"
+		)
+		.get(githubId) as UserRow | undefined;
+	if (!row) {
 		return null;
 	}
+
 	const user: User = {
-		id: row._id.toHexString(),
+		id: row.id,
 		github_id: row.github_id,
 		email: row.email,
 		username: row.username,
@@ -43,7 +59,7 @@ export async function getUserFromGitHubId(githubId: number, githubAccessToken: s
 }
 
 export interface User {
-	id: string;
+	id: number;
 	email: string;
 	github_id: number;
 	username: string;
